@@ -1,0 +1,7 @@
+.env
+/node_modules
+.wwebjs_cache
+.wwebjs_auth
+venv
+get-cookies.txt
+.git
