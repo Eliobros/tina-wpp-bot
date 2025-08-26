@@ -3,6 +3,8 @@ const path = require('path');
 const WhatsAppConnection = require('./src/Connection');
 const ButtonHandler = require('./src/ButtonHandler');
 const JoinAuthHandler = require('./src/JoinAuthHandler');
+const AntiSystemsHandler = require('./src/AntiSystemsHandler');
+const VPSCinemaHandler = require('./src/VPSCinemaHandler');
 
 class TinaBot {
     constructor() {
@@ -11,6 +13,9 @@ class TinaBot {
         this.connection = new WhatsAppConnection();
         this.client = null;
         this.buttonHandler = null;
+        this.joinAuthHandler = null;
+        this.antiSystemsHandler = null;
+        this.vpsHandler = null;
     }
 
     loadConfig() {
@@ -89,39 +94,7 @@ class TinaBot {
             await message.reply(`Olá ${userName} esse comando não existe`);
             return;
         }
-	try {
-        // Só processa mensagens de grupos
-        if (!message.from.includes("@g.us")) return;
 
-        const chat = await message.getChat();
-        const author = await message.getContact();
-        const authorId = author.id._serialized;
-
-        // Ignorar admins e VIPs
-        const isAdmin = chat.participants.some(p => p.id._serialized === authorId && p.isAdmin);
-        const isVIP = config.Vips.includes(authorId);
-        if (isAdmin || isVIP) return;
-
-        // Pega todas as menções na mensagem
-        const mentions = await message.getGroupMentions();
-
-        // Verifica se o grupo foi mencionado
-        const groupMentioned = mentions.some(contact => contact.id._serialized === chat.id._serialized);
-
-        if (groupMentioned) {
-            // Remove o membro
-            await chat.removeParticipants([authorId]);
-
-            // Notificação opcional no grupo
-            await chat.sendMessage(`🚫 @${author.id.user} foi removido por tentar mencionar o grupo!`, {
-                mentions: [author]
-            });
-
-            console.log(`🚨 Usuário ${author.pushname || author.id.user} removido do grupo ${chat.name} por mencionar o grupo.`);
-        }
-    } catch (err) {
-        console.error("Erro ao processar menção de status:", err);
-    }
         // Verifica permissões
         const contact = await message.getContact();
         const userNumber = contact.number;
@@ -217,43 +190,49 @@ class TinaBot {
     }
 
     async start() {
+    try {
+        console.log('🚀 Iniciando Tina Bot...');
+        console.log(`🤖 Nome: ${this.config.NomeDoBot}`);
+        console.log(`👑 Dono: ${this.config.NickDono}`);
+        console.log(`📞 Número do Dono: ${this.config.NumeroDono}`);
+        console.log(`⚡ Prefixo: ${this.config.Prefixo}`);
+
+        // Carrega os comandos
+        this.loadCommands();
+
+        // Inicializa a conexão
+        this.client = await this.connection.initialize();
+
+        // Configura o handler de mensagens
+        this.client.on('message', async (message) => {
+            await this.handleMessage(message);
+        });
+
+        // Configura o handler de botões
+        this.buttonHandler = new ButtonHandler(this.client, this.config);
+
+        // Configura o handler de autorização de grupos
+        this.joinAuthHandler = new JoinAuthHandler(this.client, this.config);
+
+        console.log('🎉 Tina Bot está rodando!');
+
+        // --- Inicializa o handler da VPS ---
+        this.vpsHandler = new VPSCinemaHandler(this.config.VPS); // instanciando
         try {
-            console.log('🚀 Iniciando Tina Bot...');
-            console.log(`🤖 Nome: ${this.config.NomeDoBot}`);
-            console.log(`👑 Dono: ${this.config.NickDono}`);
-            console.log(`📞 Número do Dono: ${this.config.NumeroDono}`);
-            console.log(`⚡ Prefixo: ${this.config.Prefixo}`);
-            
-            // Carrega os comandos
-            this.loadCommands();
-            
-            // Inicializa a conexão
-            this.client = await this.connection.initialize();
-            
-            // Configura o handler de mensagens
-            this.client.on('message', async (message) => {
-                await this.handleMessage(message);
-            });
-            
-            // Configura o handler de botões
-            this.buttonHandler = new ButtonHandler(this.client, this.config);
-            
-            // Configura o handler de autorização de grupos
-            this.joinAuthHandler = new JoinAuthHandler(this.client, this.config);
-            
-            console.log('🎉 Tina Bot está rodando!');
-            
-        } catch (error) {
-            console.error('❌ Erro ao iniciar o bot:', error);
+            await this.vpsHandler.start(); // inicia conexão SSH e prepara comandos
+            console.log("🖥️ Handler VPS conectado com sucesso!");
+        } catch (err) {
+            console.error("❌ Falha ao conectar o Handler VPS:", err.message);
         }
+
+    } catch (error) {
+        console.error('❌ Erro ao iniciar o bot:', error);
     }
 }
-
-
+}
 // Inicia o bot
 const bot = new TinaBot();
 bot.start();
-
 // Tratamento de erros não capturados
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
