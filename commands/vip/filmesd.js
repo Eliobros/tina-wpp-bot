@@ -3,13 +3,13 @@ module.exports = {
     name: 'filmesd',
     description: 'Lista todos os filmes disponíveis na VPS (exclusivo VIP)',
     usage: 'filmesd',
-    execute: async ({ message, config, client }) => {
+    execute: async ({ message, config, client, vpsHandler }) => {
         try {
             // Reage com 🎬
             await message.react('🎬');
             
             // Verifica se a VPS está conectada
-            if (!client.vpsHandler || !client.vpsHandler.getVPSStatus().connected) {
+            if (!vpsHandler || !vpsHandler.getVPSStatus().connected) {
                 return await message.reply('❌ VPS não está conectada! Entre em contato com o dono.');
             }
 
@@ -17,7 +17,7 @@ module.exports = {
             const loadingMsg = await message.reply('🎬 Acessando biblioteca de filmes na VPS...');
 
             // Busca os filmes
-            const resultado = await client.vpsHandler.getFilmes();
+            const resultado = await vpsHandler.getFilmes();
 
             if (!resultado.success) {
                 await loadingMsg.edit(`❌ Erro ao acessar filmes: ${resultado.error}`);

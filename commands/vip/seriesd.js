@@ -3,13 +3,13 @@ module.exports = {
     name: 'seriesd',
     description: 'Lista todas as séries disponíveis na VPS (exclusivo VIP)',
     usage: 'seriesd',
-    execute: async ({ message, config, client, userNumber }) => {
+    execute: async ({ message, config, client, vpsHandler, userNumber }) => {
         try {
             // Reage com 📺
             await message.react('📺');
             
             // Verifica se a VPS está conectada
-            if (!client.vpsHandler || !client.vpsHandler.getVPSStatus().connected) {
+            if (!vpsHandler || !vpsHandler.getVPSStatus().connected) {
                 return await message.reply('❌ VPS não está conectada! Entre em contato com o dono.');
             }
 
@@ -17,7 +17,7 @@ module.exports = {
             const loadingMsg = await message.reply('📺 Acessando biblioteca de séries na VPS...');
 
             // Busca as séries
-            const resultado = await client.vpsHandler.getSeries();
+            const resultado = await vpsHandler.getSeries();
 
             if (!resultado.success) {
                 await loadingMsg.edit(`❌ Erro ao acessar séries: ${resultado.error}`);
@@ -32,7 +32,7 @@ module.exports = {
             }
 
             // Salva a lista de séries para este usuário (para usar no comando /temp)
-            client.vpsHandler.saveSeriesList(userNumber, { series, path });
+            vpsHandler.saveSeriesList(userNumber, { series, path });
 
             // Formata a lista de séries (limita para evitar mensagem muito grande)
             let seriesLista = `📺 *SÉRIES DISPONÍVEIS* 📺\n\n📊 *Total:* ${total} séries\n🖥️ *Fonte:* VPS Cinema\n\n`;

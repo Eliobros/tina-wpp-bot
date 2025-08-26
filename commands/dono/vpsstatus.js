@@ -3,17 +3,17 @@ module.exports = {
     name: 'vpsstatus',
     description: 'Verifica o status da conexão com a VPS (apenas dono)',
     usage: 'vpsstatus',
-    execute: async ({ message, config, client }) => {
+    execute: async ({ message, config, client, vpsHandler }) => {
         try {
             // Reage com 🖥️
             await message.react('🖥️');
 
             let statusMsg = `🖥️ *STATUS DA VPS CINEMA* 🖥️\n\n`;
 
-            if (!client.vpsHandler) {
+            if (!vpsHandler) {
                 statusMsg += `❌ *Status:* Handler VPS não iniciado\n⚠️ *Problema:* Sistema VPS não está ativo\n\n💡 *Solução:* Reinicie o bot ou verifique as configurações`;
             } else {
-                const status = client.vpsHandler.getVPSStatus();
+                const status = vpsHandler.getVPSStatus();
                 
                 statusMsg += `${status.connected ? '✅' : '❌'} *Conexão:* ${status.connected ? 'Conectada' : 'Desconectada'}\n`;
                 statusMsg += `🌐 *Host:* ${status.host}\n`;

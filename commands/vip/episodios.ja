@@ -3,7 +3,7 @@ module.exports = {
     name: 'episodios',
     description: 'Mostra os episódios de uma temporada específica (exclusivo VIP)',
     usage: 'episodios <número da série> <número da temporada>',
-    execute: async ({ message, args, config, client, userNumber }) => {
+    execute: async ({ message, args, config, client, vpsHandler, userNumber }) => {
         // Verifica se foram fornecidos os argumentos
         if (args.length < 2) {
             return await message.reply(`❌ *Uso incorreto!*\n\n📖 *Como usar:* ${config.Prefixo}episodios <série> <temporada>\n\n💡 *Exemplo:* ${config.Prefixo}episodios 1 1\n\n📺 *Passos:*\n1. ${config.Prefixo}seriesd - ver séries\n2. ${config.Prefixo}temp <número> - ver temporadas\n3. ${config.Prefixo}episodios <série> <temporada> - ver episódios`);
@@ -21,12 +21,12 @@ module.exports = {
             await message.react('📺');
             
             // Verifica se a VPS está conectada
-            if (!client.vpsHandler || !client.vpsHandler.getVPSStatus().connected) {
+            if (!vpsHandler || !vpsHandler.getVPSStatus().connected) {
                 return await message.reply('❌ VPS não está conectada! Entre em contato com o dono.');
             }
 
             // Verifica se o usuário tem lista de séries salva
-            const userSeriesList = client.vpsHandler.seriesLists.get(userNumber);
+            const userSeriesList = vpsHandler.seriesLists.get(userNumber);
             if (!userSeriesList) {
                 return await message.reply(`❌ Você precisa usar ${config.Prefixo}seriesd primeiro para carregar a lista de séries!`);
             }
@@ -39,7 +39,7 @@ module.exports = {
             const serieName = userSeriesList.series[serieIndex];
 
             // Primeiro busca as temporadas para validar o índice da temporada
-            const temporadasResult = await client.vpsHandler.getTemporadas(serieName, userNumber);
+            const temporadasResult = await vpsHandler.getTemporadas(serieName, userNumber);
             if (!temporadasResult.success || temporadaIndex >= temporadasResult.temporadas.length) {
                 return await message.reply(`❌ Temporada não encontrada! Use ${config.Prefixo}temp ${serieIndex + 1} para ver as temporadas disponíveis.`);
             }
@@ -50,7 +50,7 @@ module.exports = {
             const loadingMsg = await message.reply(`📺 Buscando episódios de "${serieName} - ${temporadaName}"...`);
 
             // Busca os episódios
-            const resultado = await client.vpsHandler.getEpisodios(serieName, temporadaName, userNumber);
+            const resultado = await vpsHandler.getEpisodios(serieName, temporadaName, userNumber);
 
             if (!resultado.success) {
                 await loadingMsg.edit(`❌ Erro ao acessar episódios: ${resultado.error}`);

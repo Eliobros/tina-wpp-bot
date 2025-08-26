@@ -3,7 +3,7 @@ module.exports = {
     name: 'temp',
     description: 'Mostra as temporadas de uma série específica (exclusivo VIP)',
     usage: 'temp <número da série>',
-    execute: async ({ message, args, config, client, userNumber }) => {
+    execute: async ({ message, args, config, client, vpsHandler, userNumber }) => {
         // Verifica se foi fornecido um número
         if (args.length === 0) {
             return await message.reply(`❌ *Uso incorreto!*\n\n📖 *Como usar:* ${config.Prefixo}temp <número da série>\n\n💡 *Exemplo:* ${config.Prefixo}temp 1\n\n📺 *Primeiro use:* ${config.Prefixo}seriesd para ver a lista numerada`);
@@ -20,12 +20,12 @@ module.exports = {
             await message.react('📂');
             
             // Verifica se a VPS está conectada
-            if (!client.vpsHandler || !client.vpsHandler.getVPSStatus().connected) {
+            if (!vpsHandler || !vpsHandler.getVPSStatus().connected) {
                 return await message.reply('❌ VPS não está conectada! Entre em contato com o dono.');
             }
 
             // Verifica se o usuário tem lista de séries salva
-            const userSeriesList = client.vpsHandler.seriesLists.get(userNumber);
+            const userSeriesList = vpsHandler.seriesLists.get(userNumber);
             if (!userSeriesList) {
                 return await message.reply(`❌ Você precisa usar ${config.Prefixo}seriesd primeiro para carregar a lista de séries!`);
             }
@@ -41,7 +41,7 @@ module.exports = {
             const loadingMsg = await message.reply(`📂 Buscando temporadas de "${serieName}"...`);
 
             // Busca as temporadas
-            const resultado = await client.vpsHandler.getTemporadas(serieName, userNumber);
+            const resultado = await vpsHandler.getTemporadas(serieName, userNumber);
 
             if (!resultado.success) {
                 await loadingMsg.edit(`❌ Erro ao acessar temporadas: ${resultado.error}`);

@@ -140,6 +140,7 @@ class TinaBot {
                 args,
                 client: this.client,
                 config: this.config,
+                vpsHandler: this.vpsHandler,
                 userNumber,
                 contact,
                 chat
