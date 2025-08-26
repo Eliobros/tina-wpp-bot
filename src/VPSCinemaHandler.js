@@ -11,12 +11,12 @@ class VPSCinemaHandler {
     }
 
     setupSSH() {
-        // Configuração da VPS (adicione essas configs no dono.json)
+        // Configuração da VPS (recebe diretamente as configs)
         this.vpsConfig = {
-            host: this.config.VPS?.host || process.env.VPS_HOST,
-            port: this.config.VPS?.port || 22,
-            username: this.config.VPS?.username || process.env.VPS_USERNAME,
-            password: this.config.VPS?.password || process.env.VPS_PASSWORD
+            host: this.config.host || process.env.VPS_HOST,
+            port: this.config.port || 22,
+            username: this.config.username || process.env.VPS_USERNAME,
+            password: this.config.password || process.env.VPS_PASSWORD
         };
 
         // Conecta na VPS
@@ -94,9 +94,8 @@ class VPSCinemaHandler {
     async getFilmes() {
         try {
             const filmesPaths = [
-                'C:/Users/administrator/Desktop/Cinema/Filmes',
-                '/home/cinema/filmes', // Alternativa Linux
-                this.config.VPS?.filmesPath || ''
+                this.config.filmesPath || 'C:/Users/administrator/Desktop/Cinema/Filmes',
+                '/home/cinema/filmes' // Alternativa Linux
             ].filter(path => path);
 
             for (const path of filmesPaths) {
@@ -131,9 +130,8 @@ class VPSCinemaHandler {
     async getSeries() {
         try {
             const seriesPaths = [
-                'C:/Users/administrator/Desktop/Cinema/Series',
-                '/home/cinema/series', // Alternativa Linux
-                this.config.VPS?.seriesPath || ''
+                this.config.seriesPath || 'C:/Users/administrator/Desktop/Cinema/Series',
+                '/home/cinema/series' // Alternativa Linux
             ].filter(path => path);
 
             for (const path of seriesPaths) {

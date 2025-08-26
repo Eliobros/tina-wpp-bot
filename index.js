@@ -217,7 +217,15 @@ class TinaBot {
         console.log('🎉 Tina Bot está rodando!');
 
         // --- Inicializa o handler da VPS ---
-        this.vpsHandler = new VPSCinemaHandler(this.config.VPS); // instanciando
+        // Pega as configs corretas dentro de dono.json
+        this.vpsHandler = new VPSCinemaHandler({
+            host: this.config.VPS.host,
+            port: this.config.VPS.port,
+            username: this.config.VPS.username,
+            password: this.config.VPS.password,
+            filmesPath: this.config.VPS.filmesPath,
+            seriesPath: this.config.VPS.seriesPath
+        });
         try {
             await this.vpsHandler.start(); // inicia conexão SSH e prepara comandos
             console.log("🖥️ Handler VPS conectado com sucesso!");
