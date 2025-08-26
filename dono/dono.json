@@ -6,7 +6,7 @@
   "VisualizarMsg": true,
   "Vips": [],
   "AntiSystems": {
-    "antilink": false,
+    "antilink": true,
     "antifake": false,
     "antipalavrao": false,
     "antipv": false,

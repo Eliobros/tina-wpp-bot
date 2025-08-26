@@ -215,6 +215,9 @@ class TinaBot {
         // Configura o handler de autorização de grupos
         this.joinAuthHandler = new JoinAuthHandler(this.client, this.config);
 
+        // Configura o handler de anti-sistemas
+        this.antiSystemsHandler = new AntiSystemsHandler(this.client, this.config);
+
         console.log('🎉 Tina Bot está rodando!');
 
         // --- Inicializa o handler da VPS ---
