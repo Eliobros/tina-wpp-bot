@@ -56,10 +56,12 @@ class VPSCinemaHandler {
                 return reject(new Error('VPS não conectada'));
             }
 
-            // Comando para Windows (dir) ou Linux (ls)
-            const command = process.platform === 'win32' ? 
-                `dir "${path}" /b` : 
-                `ls -1 "${path}"`;
+            // Comando baseado no sistema da VPS (não do bot)
+            // Como a VPS está configurada com caminhos Windows, usa PowerShell para compatibilidade
+            const isWindowsPath = path.includes('C:') || path.includes('\\');
+            const command = isWindowsPath ? 
+                `powershell -Command "Get-ChildItem -Path '${path}' -Name | Where-Object { $_ -match '\\.(mp4|mkv|avi|mov|wmv|flv|webm)$' }"` :
+                `ls -1 "${path}" | grep -E '\\.(mp4|mkv|avi|mov|wmv|flv|webm)$'`;
 
             this.ssh.exec(command, (err, stream) => {
                 if (err) return reject(err);
