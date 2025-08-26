@@ -10,6 +10,7 @@
     "antifake": false,
     "antipalavrao": false,
     "antipv": false,
+    "antimention": false,
     "anticall": false
   },
   "PalavrasProibidas": [],

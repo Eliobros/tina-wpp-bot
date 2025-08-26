@@ -1,4 +1,6 @@
 // src/AntiSystemsHandler.js
+const { handleAntiMention } = require('../commands/dono/antimention');
+
 class AntiSystemsHandler {
     constructor(client, config) {
         this.client = client;
@@ -70,6 +72,11 @@ class AntiSystemsHandler {
                     await this.handleAntiPalavrao(message, chat, contact, badWord);
                     return;
                 }
+            }
+
+            // Handler para anti-mention
+            if (this.config.AntiSystems?.antimention && !hasException) {
+                await handleAntiMention(message, this.config);
             }
         }
     }
