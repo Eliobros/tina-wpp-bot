@@ -28,11 +28,12 @@ module.exports = {
             const categories = {
                 'dono': [],
                 'admin': [],
-                'membros': []
+                'membros': [],
+		'vip': []
             };
             
             // Coleta comandos por categoria
-            ['dono', 'admin', 'membros'].forEach(category => {
+            ['dono', 'admin', 'membros', 'vip'].forEach(category => {
                 const categoryPath = path.join(commandsPath, 'commands', category);
                 
                 if (fs.existsSync(categoryPath)) {
@@ -58,7 +59,7 @@ module.exports = {
             // Verifica permissões do usuário
             const isDono = userNumber === config.NumeroDono;
             let isAdmin = isDono;
-            
+            const isVip = config.Vips && config.Vips.includes(userNumber);
             if (isGroup && !isDono) {
                 const participant = chat.participants.find(p => p.id._serialized.includes(userNumber));
                 isAdmin = participant && participant.isAdmin;
@@ -106,6 +107,17 @@ module.exports = {
                 });
                 menu += `   ╰╌❅̸╌═⊱≈\n`;
                 menu += `╰╌❅̸╌═⊱≈『👑 MENU DONO 👑』≈⊰═╌❅̸╌╯\n\n`;
+            }
+
+	    // Menu VIP (só para usuarios vips)
+            if (isVip && categories.vip.length > 0) {
+                menu += `╭╌❅̸╌═⊱≈『👑 MENU VIP 👑』≈⊰═╌❅̸╌╮\n`;
+                menu += `   ╭╌❅̸╌═⊱≈\n`;
+                categories.vip.forEach(cmd => {
+                    menu += `╎║👑ꪾ〬ꩌ۪${config.Prefixo}${cmd.name}\n`;
+                });
+                menu += `   ╰╌❅̸╌═⊱≈\n`;
+                menu += `╰╌❅̸╌═⊱≈『👑 MENU VIP 👑』≈⊰═╌❅̸╌╯\n\n`;
             }
             
             // Rodapé

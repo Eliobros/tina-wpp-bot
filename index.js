@@ -240,6 +240,8 @@ class TinaBot {
     } catch (error) {
         console.error('❌ Erro ao iniciar o bot:', error);
     }
+console.log('Config do bot:', this.config);
+console.log('Config da VPS:', this.config.VPS);
 }
 }
 // Inicia o bot

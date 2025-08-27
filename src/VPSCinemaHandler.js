@@ -11,13 +11,15 @@ class VPSCinemaHandler {
     }
 
     setupSSH() {
-        // Configuração da VPS (recebe diretamente as configs)
+        // Configuração da VPS (pega diretamente do config)
         this.vpsConfig = {
-            host: this.config.host || process.env.VPS_HOST,
-            port: this.config.port || 22,
-            username: this.config.username || process.env.VPS_USERNAME,
-            password: this.config.password || process.env.VPS_PASSWORD
+            host: this.config.VPS?.host || process.env.VPS_HOST,
+            port: this.config.VPS?.port || 22,
+            username: this.config.VPS?.username || process.env.VPS_USERNAME,
+            password: this.config.VPS?.password || process.env.VPS_PASSWORD
         };
+
+        console.log(`🔧 Configurando VPS: ${this.vpsConfig.host} (${this.vpsConfig.username})`);
 
         // Conecta na VPS
         this.ssh.on('ready', () => {
@@ -26,102 +28,198 @@ class VPSCinemaHandler {
         });
 
         this.ssh.on('error', (err) => {
-            console.error('❌ Erro na conexão VPS:', err);
+            console.error('❌ Erro na conexão VPS:', err.message);
             this.isConnected = false;
         });
 
         this.ssh.on('close', () => {
             console.log('🔌 Conexão VPS fechada');
             this.isConnected = false;
-            // Reconecta após 5 segundos
-            setTimeout(() => this.connect(), 5000);
+            // Reconecta após 10 segundos
+            setTimeout(() => {
+                if (this.vpsConfig.host && this.vpsConfig.username && this.vpsConfig.password) {
+                    console.log('🔄 Tentando reconectar VPS...');
+                    this.connect();
+                }
+            }, 10000);
         });
     }
 
     connect() {
         if (this.vpsConfig.host && this.vpsConfig.username && this.vpsConfig.password) {
             try {
+                console.log(`🔗 Conectando na VPS: ${this.vpsConfig.host}:${this.vpsConfig.port}`);
                 this.ssh.connect(this.vpsConfig);
             } catch (error) {
                 console.error('❌ Erro ao conectar VPS:', error);
             }
         } else {
-            console.log('⚠️ Configurações da VPS não definidas');
+            console.log('⚠️ Configurações da VPS incompletas:');
+            console.log(`- Host: ${this.vpsConfig.host || 'FALTANDO'}`);
+            console.log(`- Username: ${this.vpsConfig.username || 'FALTANDO'}`);
+            console.log(`- Password: ${this.vpsConfig.password ? 'OK' : 'FALTANDO'}`);
         }
     }
 
-    listarArquivos(path) {
+    // Método melhorado para detecção do SO
+    detectOS() {
         return new Promise((resolve, reject) => {
             if (!this.isConnected) {
                 return reject(new Error('VPS não conectada'));
             }
 
-            // Comando baseado no sistema da VPS (não do bot)
-            // Como a VPS está configurada com caminhos Windows, usa PowerShell para compatibilidade
-            const isWindowsPath = path.includes('C:') || path.includes('\\');
-            const command = isWindowsPath ? 
-                `powershell -Command "Get-ChildItem -Path '${path}' -Name | Where-Object { $_ -match '\\.(mp4|mkv|avi|mov|wmv|flv|webm)$' }"` :
-                `ls -1 "${path}" | grep -E '\\.(mp4|mkv|avi|mov|wmv|flv|webm)$'`;
-
-            this.ssh.exec(command, (err, stream) => {
-                if (err) return reject(err);
+            this.ssh.exec('ver', (err, stream) => {
+                if (err) {
+                    // Se 'ver' falha, provavelmente é Linux
+                    resolve('linux');
+                    return;
+                }
 
                 let output = '';
-                let errorOutput = '';
-
                 stream.on('data', (data) => {
                     output += data.toString();
                 });
 
-                stream.stderr.on('data', (data) => {
-                    errorOutput += data.toString();
-                });
-
                 stream.on('close', (code) => {
-                    if (code !== 0) {
-                        return reject(new Error(`Comando falhou: ${errorOutput}`));
+                    if (output.includes('Windows') || output.includes('Microsoft')) {
+                        resolve('windows');
+                    } else {
+                        resolve('linux');
                     }
-
-                    const items = output
-                        .split(/\r?\n/)
-                        .filter(item => item.trim())
-                        .filter(item => !item.includes('bytes free')); // Remove info de espaço do Windows
-
-                    resolve(items);
                 });
             });
         });
     }
 
+    listarArquivos(path) {
+        return new Promise(async (resolve, reject) => {
+            if (!this.isConnected) {
+                return reject(new Error('VPS não conectada'));
+            }
+
+            try {
+                // Detecta o sistema operacional
+                const os = await this.detectOS();
+                console.log(`🖥️ Sistema detectado: ${os}`);
+
+                let command;
+                if (os === 'windows') {
+                    // Normaliza o caminho para Windows (converte / para \)
+                    const windowsPath = path.replace(/\//g, '\\');
+                    
+                    // Comando mais robusto para Windows
+                    command = `powershell -Command "try { if (Test-Path '${windowsPath}') { Get-ChildItem -Path '${windowsPath}' -Name -ErrorAction Stop | Out-String } else { 'PATH_NOT_FOUND' } } catch { 'ERROR: ' + $_.Exception.Message }"`;
+                } else {
+                    // Para Linux/Unix
+                    command = `ls -1 "${path}" 2>/dev/null || echo "PATH_NOT_FOUND"`;
+                }
+
+                console.log(`📋 Executando comando: ${command}`);
+
+                this.ssh.exec(command, (err, stream) => {
+                    if (err) {
+                        console.error('❌ Erro ao executar comando SSH:', err);
+                        return reject(err);
+                    }
+
+                    let output = '';
+                    let errorOutput = '';
+
+                    stream.on('data', (data) => {
+                        output += data.toString();
+                    });
+
+                    stream.stderr.on('data', (data) => {
+                        errorOutput += data.toString();
+                    });
+
+                    stream.on('close', (code) => {
+                        console.log(`📊 Comando finalizado com código: ${code}`);
+                        console.log(`📤 Saída bruta: "${output}"`);
+                        
+                        if (errorOutput) {
+                            console.log(`❌ Erro: "${errorOutput}"`);
+                        }
+
+                        const outputTrimmed = output.trim();
+                        
+                        // Verifica se o diretório não existe
+                        if (outputTrimmed.includes('PATH_NOT_FOUND')) {
+                            console.log(`❌ Diretório não encontrado: ${path}`);
+                            return resolve([]);
+                        }
+
+                        // Verifica se houve erro no PowerShell
+                        if (outputTrimmed.startsWith('ERROR:')) {
+                            console.log(`❌ Erro do PowerShell: ${outputTrimmed}`);
+                            return resolve([]);
+                        }
+
+                        // Se não há saída, retorna array vazio
+                        if (!outputTrimmed) {
+                            console.log(`📂 Diretório vazio: ${path}`);
+                            return resolve([]);
+                        }
+
+                        // Processa a saída
+                        const items = outputTrimmed
+                            .split(/\r?\n/)
+                            .map(item => item.trim())
+                            .filter(item => {
+                                // Remove linhas vazias e saídas de erro do PowerShell
+                                return item && 
+                                       !item.includes('Get-ChildItem') &&
+                                       !item.startsWith('At line:') &&
+                                       !item.startsWith('CategoryInfo') &&
+                                       !item.startsWith('FullyQualifiedErrorId') &&
+                                       !item.startsWith('ERROR:');
+                            });
+
+                        console.log(`📁 Itens processados encontrados em ${path}:`, items.length);
+                        console.log(`📋 Itens: [${items.join(', ')}]`);
+                        resolve(items);
+                    });
+                });
+
+            } catch (error) {
+                console.error('❌ Erro na detecção do SO:', error);
+                reject(error);
+            }
+        });
+    }
+
     async getFilmes() {
         try {
-            const filmesPaths = [
-                this.config.filmesPath || 'C:/Users/administrator/Desktop/Cinema/Filmes',
-                '/home/cinema/filmes' // Alternativa Linux
-            ].filter(path => path);
+            // Usa apenas o caminho configurado primeiro
+            const filmesPath = this.config.VPS?.filmesPath;
+            
+            if (!filmesPath) {
+                return {
+                    success: false,
+                    error: 'Caminho dos filmes não configurado no dono.json'
+                };
+            }
 
-            for (const path of filmesPaths) {
-                try {
-                    const filmes = await this.listarArquivos(path);
-                    if (filmes.length > 0) {
-                        return {
-                            success: true,
-                            filmes,
-                            path,
-                            total: filmes.length
-                        };
-                    }
-                } catch (error) {
-                    continue; // Tenta próximo path
-                }
+            console.log(`🎬 Buscando filmes em: ${filmesPath}`);
+            
+            const filmes = await this.listarArquivos(filmesPath);
+            
+            if (filmes.length > 0) {
+                return {
+                    success: true,
+                    filmes,
+                    path: filmesPath,
+                    total: filmes.length
+                };
             }
 
             return {
                 success: false,
-                error: 'Nenhum filme encontrado nos diretórios configurados'
+                error: `Nenhum filme encontrado no diretório: ${filmesPath}`
             };
 
         } catch (error) {
+            console.error('❌ Erro ao buscar filmes:', error);
             return {
                 success: false,
                 error: error.message
@@ -129,35 +227,40 @@ class VPSCinemaHandler {
         }
     }
 
+
+
     async getSeries() {
         try {
-            const seriesPaths = [
-                this.config.seriesPath || 'C:/Users/administrator/Desktop/Cinema/Series',
-                '/home/cinema/series' // Alternativa Linux
-            ].filter(path => path);
+            // Usa apenas o caminho configurado primeiro
+            const seriesPath = this.config.VPS?.seriesPath;
+            
+            if (!seriesPath) {
+                return {
+                    success: false,
+                    error: 'Caminho das séries não configurado no dono.json'
+                };
+            }
 
-            for (const path of seriesPaths) {
-                try {
-                    const series = await this.listarArquivos(path);
-                    if (series.length > 0) {
-                        return {
-                            success: true,
-                            series,
-                            path,
-                            total: series.length
-                        };
-                    }
-                } catch (error) {
-                    continue; // Tenta próximo path
-                }
+            console.log(`📺 Buscando séries em: ${seriesPath}`);
+            
+            const series = await this.listarArquivos(seriesPath);
+            
+            if (series.length > 0) {
+                return {
+                    success: true,
+                    series,
+                    path: seriesPath,
+                    total: series.length
+                };
             }
 
             return {
                 success: false,
-                error: 'Nenhuma série encontrada nos diretórios configurados'
+                error: `Nenhuma série encontrada no diretório: ${seriesPath}`
             };
 
         } catch (error) {
+            console.error('❌ Erro ao buscar séries:', error);
             return {
                 success: false,
                 error: error.message
@@ -177,8 +280,13 @@ class VPSCinemaHandler {
             }
 
             const seriesPath = userSeriesList.path;
-            const temporadasPath = `${seriesPath}/${serieName}`;
             
+            // Normaliza o caminho (tanto para Linux quanto Windows)
+            const temporadasPath = seriesPath.endsWith('/') || seriesPath.endsWith('\\') 
+                ? `${seriesPath}${serieName}` 
+                : `${seriesPath}/${serieName}`;
+            
+            console.log(`📺 Buscando temporadas em: ${temporadasPath}`);
             const temporadas = await this.listarArquivos(temporadasPath);
             
             return {
@@ -190,6 +298,7 @@ class VPSCinemaHandler {
             };
 
         } catch (error) {
+            console.error('❌ Erro ao buscar temporadas:', error);
             return {
                 success: false,
                 error: error.message
@@ -208,6 +317,8 @@ class VPSCinemaHandler {
             }
 
             const episodiosPath = `${userSeriesList.path}/${serieName}/${temporadaName}`;
+            console.log(`📺 Buscando episódios em: ${episodiosPath}`);
+            
             const episodios = await this.listarArquivos(episodiosPath);
             
             return {
@@ -220,11 +331,36 @@ class VPSCinemaHandler {
             };
 
         } catch (error) {
+            console.error('❌ Erro ao buscar episódios:', error);
             return {
                 success: false,
                 error: error.message
             };
         }
+    }
+
+    // Método para testar conectividade e comandos
+    async testConnection() {
+        return new Promise((resolve, reject) => {
+            if (!this.isConnected) {
+                return reject(new Error('VPS não conectada'));
+            }
+
+            // Teste básico
+            this.ssh.exec('echo "Teste de conexão SSH"', (err, stream) => {
+                if (err) return reject(err);
+
+                let output = '';
+                stream.on('data', (data) => {
+                    output += data.toString();
+                });
+
+                stream.on('close', (code) => {
+                    console.log(`✅ Teste de conexão: ${output.trim()}`);
+                    resolve({ success: true, output: output.trim(), code });
+                });
+            });
+        });
     }
 
     saveSeriesList(userNumber, seriesData) {
@@ -243,11 +379,6 @@ class VPSCinemaHandler {
         if (this.ssh) {
             this.ssh.end();
         }
-    }
-	 // 🔥 Adicione isso
-    start() {
-        console.log("🔌 Iniciando conexão com VPS...");
-        this.connect();
     }
 }
 
