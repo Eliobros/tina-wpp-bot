@@ -1,0 +1,25 @@
+{
+  "Prefixo": "%",
+  "NomeDoBot": "Tina Bot",
+  "NickDono": "Zëüs Lykraios",
+  "NumeroDono": "258841617651",
+  "VisualizarMsg": true,
+  "Vips": [],
+  "AntiSystems": {
+    "antilink": true,
+    "antifake": false,
+    "antipalavrao": false,
+    "antipv": false,
+    "antimention": false,
+    "anticall": false
+  },
+  "PalavrasProibidas": [],
+  "VPS": {
+    "host": "45.61.51.94",
+    "port": 22,
+    "username": "Administrator",
+    "password": "Eliobrostech33@@",
+    "filmesPath": "C:\\Users\\administrator\\Desktop\\Cinema\\Filmes",
+    "seriesPath": "C:\\Users\\administrator\\Desktop\\Cinema\\Series"
+  }
+}

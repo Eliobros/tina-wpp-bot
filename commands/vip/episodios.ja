@@ -1,0 +1,92 @@
+// commands/vip/episodios.js
+module.exports = {
+    name: 'episodios',
+    description: 'Mostra os episódios de uma temporada específica (exclusivo VIP)',
+    usage: 'episodios <número da série> <número da temporada>',
+    execute: async ({ message, args, config, client, vpsHandler, userNumber }) => {
+        // Verifica se foram fornecidos os argumentos
+        if (args.length < 2) {
+            return await message.reply(`❌ *Uso incorreto!*\n\n📖 *Como usar:* ${config.Prefixo}episodios <série> <temporada>\n\n💡 *Exemplo:* ${config.Prefixo}episodios 1 1\n\n📺 *Passos:*\n1. ${config.Prefixo}seriesd - ver séries\n2. ${config.Prefixo}temp <número> - ver temporadas\n3. ${config.Prefixo}episodios <série> <temporada> - ver episódios`);
+        }
+
+        const serieIndex = parseInt(args[0]) - 1;
+        const temporadaIndex = parseInt(args[1]) - 1;
+
+        if (isNaN(serieIndex) || isNaN(temporadaIndex) || serieIndex < 0 || temporadaIndex < 0) {
+            return await message.reply('❌ Números inválidos! Use apenas números positivos.');
+        }
+
+        try {
+            // Reage com 📺
+            await message.react('📺');
+            
+            // Verifica se a VPS está conectada
+            if (!vpsHandler || !vpsHandler.getVPSStatus().connected) {
+                return await message.reply('❌ VPS não está conectada! Entre em contato com o dono.');
+            }
+
+            // Verifica se o usuário tem lista de séries salva
+            const userSeriesList = vpsHandler.seriesLists.get(userNumber);
+            if (!userSeriesList) {
+                return await message.reply(`❌ Você precisa usar ${config.Prefixo}seriesd primeiro para carregar a lista de séries!`);
+            }
+
+            // Verifica se o índice da série é válido
+            if (serieIndex >= userSeriesList.series.length) {
+                return await message.reply(`❌ Série não encontrada! Use um número entre 1 e ${userSeriesList.series.length}.`);
+            }
+
+            const serieName = userSeriesList.series[serieIndex];
+
+            // Primeiro busca as temporadas para validar o índice da temporada
+            const temporadasResult = await vpsHandler.getTemporadas(serieName, userNumber);
+            if (!temporadasResult.success || temporadaIndex >= temporadasResult.temporadas.length) {
+                return await message.reply(`❌ Temporada não encontrada! Use ${config.Prefixo}temp ${serieIndex + 1} para ver as temporadas disponíveis.`);
+            }
+
+            const temporadaName = temporadasResult.temporadas[temporadaIndex];
+
+            // Mensagem de loading
+            const loadingMsg = await message.reply(`📺 Buscando episódios de "${serieName} - ${temporadaName}"...`);
+
+            // Busca os episódios
+            const resultado = await vpsHandler.getEpisodios(serieName, temporadaName, userNumber);
+
+            if (!resultado.success) {
+                await loadingMsg.edit(`❌ Erro ao acessar episódios: ${resultado.error}`);
+                return;
+            }
+
+            const { episodios, total } = resultado;
+
+            if (total === 0) {
+                await loadingMsg.edit(`📺 Nenhum episódio encontrado em "${serieName} - ${temporadaName}"!`);
+                return;
+            }
+
+            // Formata a lista de episódios (limita para evitar mensagem muito grande)
+            let episodiosLista = `📺 *EPISÓDIOS* 📺\n\n🎬 *Série:* ${serieName}\n📁 *Temporada:* ${temporadaName}\n📊 *Total:* ${total} episódios\n🖥️ *Fonte:* VPS Cinema\n\n`;
+            
+            const maxEpisodios = Math.min(episodios.length, 40); // Máximo 40 episódios por mensagem
+            
+            for (let i = 0; i < maxEpisodios; i++) {
+                const episodio = episodios[i];
+                episodiosLista += `🎭 ${i + 1}. ${episodio}\n`;
+            }
+
+            if (episodios.length > 40) {
+                episodiosLista += `\n... e mais ${episodios.length - 40} episódios!`;
+            }
+
+            episodiosLista += `\n\n💡 *Navegação:*\n• ${config.Prefixo}seriesd - Voltar às séries\n• ${config.Prefixo}temp ${serieIndex + 1} - Voltar às temporadas\n\n⭐ *Comando exclusivo VIP*\n🤖 *Bot:* ${config.NomeDoBot}\n⏰ *Consultado:* ${new Date().toLocaleString('pt-BR')}`;
+
+            await loadingMsg.edit(episodiosLista);
+            
+            console.log(`📺 Episódios de "${serieName} - ${temporadaName}" acessados por usuário ${userNumber} - ${total} episódios encontrados`);
+
+        } catch (error) {
+            console.error('❌ Erro no comando episodios:', error);
+            await message.reply('❌ Erro interno ao acessar episódios. Tente novamente mais tarde.');
+        }
+    }
+};
