@@ -11,12 +11,12 @@ class VPSCinemaHandler {
     }
 
     setupSSH() {
-        // Configuração da VPS (pega diretamente do config)
+        // Configuração da VPS (recebe diretamente as configs)
         this.vpsConfig = {
-            host: this.config.VPS?.host || process.env.VPS_HOST,
-            port: this.config.VPS?.port || 22,
-            username: this.config.VPS?.username || process.env.VPS_USERNAME,
-            password: this.config.VPS?.password || process.env.VPS_PASSWORD
+            host: this.config.host || process.env.VPS_HOST,
+            port: this.config.port || 22,
+            username: this.config.username || process.env.VPS_USERNAME,
+            password: this.config.password || process.env.VPS_PASSWORD
         };
 
         console.log(`🔧 Configurando VPS: ${this.vpsConfig.host} (${this.vpsConfig.username})`);
@@ -379,6 +379,12 @@ class VPSCinemaHandler {
         if (this.ssh) {
             this.ssh.end();
         }
+    }
+
+    // Método para iniciar a conexão VPS
+    start() {
+        console.log("🔌 Iniciando conexão com VPS...");
+        this.connect();
     }
 }
 
