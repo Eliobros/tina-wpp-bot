@@ -21,5 +21,14 @@
     "password": "Eliobrostech33@@",
     "filmesPath": "C:\\Users\\administrator\\Desktop\\Cinema\\Filmes",
     "seriesPath": "C:\\Users\\administrator\\Desktop\\Cinema\\Series"
+  },
+  "GrupoOficial": "",
+  "GruposStats": {},
+  "UsuariosStats": {},
+  "UsuariosAusentes": {},
+  "GroupAntiSystems": {
+    "120363421687161976@g.us": {
+      "antimention": true
+    }
   }
 }

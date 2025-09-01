@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Streaming</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .video-player {
+            background: rgba(0,0,0,0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .video-player.active {
+            display: block;
+        }
+
+        .current-video {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #64b5f6;
+        }
+
+        video {
+            width: 100%;
+            max-height: 70vh;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        .video-list {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .video-list h2 {
+            margin-bottom: 20px;
+            color: #e3f2fd;
+            border-bottom: 2px solid #64b5f6;
+            padding-bottom: 10px;
+        }
+
+        .video-item {
+            background: rgba(255,255,255,0.1);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+        }
+
+        .video-item:hover {
+            background: rgba(100, 181, 246, 0.2);
+            border-color: #64b5f6;
+            transform: translateX(5px);
+        }
+
+        .video-item.playing {
+            background: rgba(76, 175, 79, 0.3);
+            border-color: #4caf50;
+        }
+
+        .play-icon {
+            width: 40px;
+            height: 40px;
+            background: #64b5f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        .video-item.playing .play-icon {
+            background: #4caf50;
+        }
+
+        .video-info {
+            flex: 1;
+        }
+
+        .video-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .video-path {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            color: #b0bec5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+            color: #64b5f6;
+        }
+
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #f44336;
+            font-size: 1.1rem;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .video-item {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .play-icon {
+                margin: 0 0 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Video Streaming</h1>
+        
+        <div id="videoPlayer" class="video-player">
+            <div class="current-video">
+                ▶️ <span id="currentVideoName">Nenhum vídeo selecionado</span>
+            </div>
+            <video controls id="videoElement">
+                Seu navegador não suporta vídeo HTML5.
+            </video>
+        </div>
+
+        <div class="video-list">
+            <h2>📁 Lista de Vídeos</h2>
+            <div id="videoList" class="loading">
+                Carregando vídeos...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoList = document.getElementById('videoList');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoElement = document.getElementById('videoElement');
+        const currentVideoName = document.getElementById('currentVideoName');
+        let currentPlayingItem = null;
+
+        // Carregar lista de vídeos
+        async function loadVideos() {
+            try {
+                const response = await fetch('/files');
+                const videos = await response.json();
+                
+                if (videos.length === 0) {
+                    videoList.innerHTML = '<div class="error">Nenhum vídeo encontrado</div>';
+                    return;
+                }
+                
+                displayVideos(videos);
+            } catch (error) {
+                console.error('Erro ao carregar vídeos:', error);
+                videoList.innerHTML = '<div class="error">Erro ao carregar vídeos. Verifique se o servidor está rodando.</div>';
+            }
+        }
+
+        // Exibir lista de vídeos
+        function displayVideos(videos) {
+            videoList.innerHTML = '';
+            
+            videos.forEach(videoPath => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                
+                const fileName = videoPath.split('\\').pop();
+                const directory = videoPath.substring(0, videoPath.lastIndexOf('\\')) || 'Root';
+                
+                videoItem.innerHTML = `
+                    <div class="play-icon">▶</div>
+                    <div class="video-info">
+                        <div class="video-name">${fileName}</div>
+                        <div class="video-path">📁 ${directory}</div>
+                    </div>
+                `;
+                
+                videoItem.addEventListener('click', () => playVideo(videoPath, videoItem));
+                videoList.appendChild(videoItem);
+            });
+        }
+
+        // Reproduzir vídeo
+        function playVideo(videoPath, itemElement) {
+            // Remover classe playing do item anterior
+            if (currentPlayingItem) {
+                currentPlayingItem.classList.remove('playing');
+                currentPlayingItem.querySelector('.play-icon').textContent = '▶';
+            }
+            
+            // Definir novo item como playing
+            currentPlayingItem = itemElement;
+            itemElement.classList.add('playing');
+            itemElement.querySelector('.play-icon').textContent = '⏸';
+            
+            // Configurar player
+            const encodedPath = encodeURIComponent(videoPath);
+            videoElement.src = `/video/${encodedPath}`;
+            currentVideoName.textContent = videoPath.split('\\').pop();
+            
+            // Mostrar player
+            videoPlayer.classList.add('active');
+            
+            // Scroll para o player
+            videoPlayer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Event listeners para o player
+        videoElement.addEventListener('ended', () => {
+            if (currentPlayingItem) {
+                currentPlayingItem.classList.remove('playing');
+                currentPlayingItem.querySelector('.play-icon').textContent = '▶';
+                currentPlayingItem = null;
+            }
+        });
+
+        videoElement.addEventListener('pause', () => {
+            if (currentPlayingItem) {
+                currentPlayingItem.querySelector('.play-icon').textContent = '▶';
+            }
+        });
+
+        videoElement.addEventListener('play', () => {
+            if (currentPlayingItem) {
+                currentPlayingItem.querySelector('.play-icon').textContent = '⏸';
+            }
+        });
+
+        // Carregar vídeos ao iniciar
+        loadVideos();
+    </script>
+</body>
+</html>
