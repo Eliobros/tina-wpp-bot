@@ -1,34 +1,11 @@
-const { Client, RemoteAuth } = require('whatsapp-web.js');
-const { MongoStore } = require('wwebjs-mongo');
-const mongoose = require('mongoose');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const dotenv = require('dotenv')
+dotenv.config()
 
 class WhatsAppConnection {
     constructor() {
         this.client = null;
-        this.store = null;
-    }
-
-    async setupMongoDB() {
-        try {
-            const mongoUrl = process.env.MONGODB_URL || 'mongodb://localhost:27017/whatsapp-bot';
-            console.log('🔗 Conectando ao MongoDB...');
-            console.log('📍 URL:', mongoUrl);
-
-            await mongoose.connect(mongoUrl, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true
-            });
-
-            if (mongoose.connection.readyState === 1) {
-                this.store = new MongoStore({ mongoose: mongoose });
-                console.log('✅ MongoDB conectado e store inicializado!');
-                return true;
-            }
-        } catch (error) {
-            console.error('❌ Erro ao conectar MongoDB:', error.message);
-            throw error;
-        }
     }
 
     setupEvents() {
@@ -51,16 +28,15 @@ class WhatsAppConnection {
         this.client.on('authenticated', () => console.log('🔐 Autenticado com sucesso!'));
         this.client.on('auth_failure', (msg) => console.error('❌ Falha na autenticação:', msg));
 
-        // RemoteAuth events
-        this.client.on('remote_session_saved', () => console.log('💾 Sessão salva no MongoDB'));
-        this.client.on('remote_session_loaded', () => console.log('📥 Sessão carregada do MongoDB'));
+        // Listener removido - sendo usado no index.js
 
-        // Mensagens
+        // Mensagens criadas (inclui as suas)
         this.client.on('message_create', (message) => {
             console.log('📝 MESSAGE_CREATE:', {
                 from: message.from,
                 body: message.body,
-                fromMe: message.fromMe
+                fromMe: message.fromMe,
+                type: message.type
             });
         });
 
@@ -71,15 +47,21 @@ class WhatsAppConnection {
         try {
             console.log('🚀 Inicializando cliente WhatsApp...');
 
-            await this.setupMongoDB();
-            if (!this.store) throw new Error('❌ MongoStore não inicializado corretamente');
-
             this.client = new Client({
-                puppeteer: { headless: true },
-                authStrategy: new RemoteAuth({
-                    store: this.store,
-                    clientId: 'tina-bot-session',
-                    backupSyncIntervalMs: 300000
+                puppeteer: {
+                    headless: true,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
+                },
+                authStrategy: new LocalAuth({
+                    clientId: 'tina-bot-session'
                 })
             });
 
@@ -87,11 +69,6 @@ class WhatsAppConnection {
 
             await this.client.initialize();
             console.log('✅ Cliente inicializado com sucesso!');
-
-            // Mostrar quantidade de sessões salvas no MongoDB
-            this.store.collection.find().toArray().then(docs => {
-                console.log('📦 Sessões salvas no MongoDB:', docs.length);
-            });
 
             return this.client;
 
@@ -101,15 +78,10 @@ class WhatsAppConnection {
         }
     }
 
-    getClient() {
-        return this.client;
-    }
-
     async disconnect() {
         console.log('🛑 Desconectando cliente WhatsApp...');
         if (this.client) await this.client.destroy();
-        if (mongoose.connection.readyState === 1) await mongoose.disconnect();
-        console.log('✅ Cliente e MongoDB desconectados');
+        console.log('✅ Cliente desconectado');
     }
 }
 
